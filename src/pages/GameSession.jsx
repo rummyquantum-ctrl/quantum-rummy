@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     fetchPlayers,
     fetchActiveSession,
@@ -307,18 +307,21 @@ export default function GameSession() {
     if (!activeSession) {
         return (
             <div className="page-enter" style={{ maxWidth: 640, margin: '0 auto' }}>
-                <div className="page-header" style={{ textAlign: 'center' }}>
-                    <h2><span className="header-icon">🃏</span> New Game Session</h2>
+                <div className="page-header" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <h2 style={{ justifyContent: 'center' }}><span className="header-icon">🃏</span> New Game Session</h2>
                     <p>Configure your 13-card Indian Rummy game</p>
                 </div>
 
                 {/* Stepper */}
                 <div className="stepper">
-                    {[{ num: 1, label: 'Game Type' }, { num: 2, label: 'Details' }, { num: 3, label: 'Players' }].map((step) => (
-                        <div key={step.num} className={`stepper-step ${wizardStep >= step.num ? 'active' : ''} ${wizardStep > step.num ? 'completed' : ''}`}>
-                            <div className="stepper-circle">{wizardStep > step.num ? '✓' : step.num}</div>
-                            <span className={`stepper-label ${wizardStep === step.num ? 'active' : ''}`}>{step.label}</span>
-                        </div>
+                    {[{ num: 1, label: 'Game Type' }, { num: 2, label: 'Details' }, { num: 3, label: 'Players' }].map((step, idx) => (
+                        <React.Fragment key={step.num}>
+                            {idx > 0 && <div className={`stepper-line ${wizardStep > step.num - 1 ? 'done' : ''}`} />}
+                            <div className="stepper-step">
+                                <div className={`stepper-dot ${wizardStep === step.num ? 'active' : ''} ${wizardStep > step.num ? 'done' : ''}`}>{wizardStep > step.num ? '✓' : step.num}</div>
+                                <span className={`stepper-label ${wizardStep === step.num ? 'active' : ''}`}>{step.label}</span>
+                            </div>
+                        </React.Fragment>
                     ))}
                 </div>
 
@@ -417,13 +420,13 @@ export default function GameSession() {
                             </div>
                             <div className="player-picker-grid">
                                 {allPlayers.filter((p) => p.is_active).map((player) => (
-                                    <div key={player.id} className={`player-picker-card ${selectedPlayerIds.has(player.id) ? 'selected' : ''}`}
+                                    <div key={player.id} className={`player-pick-chip ${selectedPlayerIds.has(player.id) ? 'selected' : ''}`}
                                         onClick={() => togglePlayer(player.id)}>
                                         <div className="pool-avatar" style={{ background: getAvatarColor(player.name), width: 32, height: 32, fontSize: 12 }}>
                                             {getInitials(player.name)}
                                         </div>
-                                        <span>{player.name}</span>
-                                        <span className="picker-check">{selectedPlayerIds.has(player.id) ? '✓' : ''}</span>
+                                        <span style={{ flex: 1 }}>{player.name}</span>
+                                        <span className="pick-check">{selectedPlayerIds.has(player.id) ? '✓' : ''}</span>
                                     </div>
                                 ))}
                             </div>

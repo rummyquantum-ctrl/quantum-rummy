@@ -1779,3 +1779,53 @@ select.form-input {
 .flex-1 {
     flex: 1;
 }
+
+/* ─── Button Full-Width ─── */
+.btn-full {
+    flex: 1;
+    justify-content: center;
+}
+
+/* ─── Stepper Polish ─── */
+.stepper-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+/* ─── Player Picker Grid enhancement ─── */
+.player-picker-grid .player-pick-chip {
+    padding: 10px 14px;
+}
+
+.player-picker-grid .pool-avatar {
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* ─── Score table current column ─── */
+.score-table .current-col-highlight {
+    background: rgba(16, 185, 129, 0.04);
+}
+
+/* ─── Wizard card inner glow ─── */
+.page-enter>.card {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+/* ─── Selection states polish ─── */
+.player-pick-chip:active,
+.game-type-card:active {
+    transform: scale(0.98);
+}
+
+/* ─── Score input number spinners hide globally ─── */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type="number"] {
+    -moz-appearance: textfield;
+}
