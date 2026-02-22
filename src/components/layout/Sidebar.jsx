@@ -82,7 +82,7 @@ export default function Sidebar() {
                 </nav>
 
                 <div className="sidebar-footer">
-                    v01.24 • Made with ❤️ by Srinivas Tadapaneni
+                    Made with ❤️ by Srinivas T
                 </div>
             </aside>
         </>
