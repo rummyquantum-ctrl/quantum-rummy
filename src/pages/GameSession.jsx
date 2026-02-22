@@ -222,18 +222,22 @@ export default function GameSession() {
             setSessionPlayers((prev) => [...prev, player]);
 
             // Pool: new player starts with highest score + 1 (first drop left rule)
+            // Add to cumulative totals, NOT to current round score
             const sType = activeSession?.game_type || 'strike';
-            let initialScore = null;
+            let entryScore = 0;
             if (sType === 'pool' && rounds.length > 0) {
                 const highestTotal = Math.max(0, ...sessionPlayers.map((p) => cumulativeTotals[p.id] || 0));
-                initialScore = highestTotal + 1;
+                entryScore = highestTotal + 1;
+                // Add entry score to finalTotals so it shows in cumulative
+                setFinalTotals((prev) => [...prev, { player_id: player.id, total: entryScore }]);
             }
-            setRoundScores((prev) => ({ ...prev, [player.id]: initialScore }));
+            // Current round score is always null — ready for actual play
+            setRoundScores((prev) => ({ ...prev, [player.id]: null }));
 
             setInlinePlayerName('');
             setShowAddPlayerInline(false);
-            const msg = initialScore !== null
-                ? `✅ ${player.name} joined with ${initialScore} pts (highest + 1)`
+            const msg = entryScore > 0
+                ? `✅ ${player.name} joined with ${entryScore} pts (highest + 1)`
                 : `✅ ${player.name} joined the game!`;
             addToast(msg);
         } catch (err) { addToast('Error: ' + err.message, 'error'); }
