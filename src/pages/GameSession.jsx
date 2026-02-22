@@ -9,6 +9,7 @@ import {
     backupAndNextRound,
     completeSession,
     addPlayer,
+    upsertFinalTotal,
 } from '../lib/supabaseService';
 import { getAvatarColor, getInitials } from '../utils/scoring';
 
@@ -222,13 +223,15 @@ export default function GameSession() {
             setSessionPlayers((prev) => [...prev, player]);
 
             // Pool: new player starts with highest score + 1 (first drop left rule)
-            // Add to cumulative totals, NOT to current round score
+            // Persist entry score to DB so it survives round submissions
             const sType = activeSession?.game_type || 'strike';
             let entryScore = 0;
             if (sType === 'pool' && rounds.length > 0) {
                 const highestTotal = Math.max(0, ...sessionPlayers.map((p) => cumulativeTotals[p.id] || 0));
                 entryScore = highestTotal + 1;
-                // Add entry score to finalTotals so it shows in cumulative
+                // Persist to DB: create final_totals record with entry score
+                await upsertFinalTotal(activeSession.id, player.id, { roundScore: entryScore });
+                // Update local state to reflect immediately
                 setFinalTotals((prev) => [...prev, { player_id: player.id, total: entryScore }]);
             }
             // Current round score is always null — ready for actual play
