@@ -306,8 +306,8 @@ export default function GameSession() {
     // ═══════════════════════════════════════
     if (!activeSession) {
         return (
-            <div className="page-enter">
-                <div className="page-header">
+            <div className="page-enter" style={{ maxWidth: 640, margin: '0 auto' }}>
+                <div className="page-header" style={{ textAlign: 'center' }}>
                     <h2><span className="header-icon">🃏</span> New Game Session</h2>
                     <p>Configure your 13-card Indian Rummy game</p>
                 </div>
