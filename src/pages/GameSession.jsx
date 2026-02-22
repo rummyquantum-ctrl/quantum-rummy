@@ -293,7 +293,7 @@ export default function GameSession() {
         return (
             <div className="page-enter">
                 <div className="empty-state">
-                    <div className="card-spinner">🂡</div>
+                    <div className="card-spinner">♠️</div>
                     <h3>Shuffling the Deck...</h3>
                     <p>Loading game data</p>
                 </div>
@@ -308,7 +308,7 @@ export default function GameSession() {
         return (
             <div className="page-enter" style={{ maxWidth: 640, margin: '0 auto' }}>
                 <div className="page-header" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <h2 style={{ justifyContent: 'center' }}><span className="header-icon">🂡</span> New Game Session</h2>
+                    <h2 style={{ justifyContent: 'center' }}><span className="header-icon">♠️</span> New Game Session</h2>
                     <p>Configure your 13-card Indian Rummy game</p>
                 </div>
 
@@ -465,7 +465,7 @@ export default function GameSession() {
             <div className="page-header">
                 <div className="page-header-row">
                     <div>
-                        <h2><span className="header-icon">🂡</span> {activeSession.session_name}</h2>
+                        <h2><span className="header-icon">♠️</span> {activeSession.session_name}</h2>
                         <div className="header-meta">
                             <span className="header-meta-chip">
                                 {isStrike ? '⚡ Strike' : `🪙 Pool ${effectivePoolLimit}`}

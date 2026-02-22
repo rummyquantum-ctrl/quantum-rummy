@@ -97,7 +97,7 @@ export default function Players() {
         return (
             <div className="page-enter">
                 <div className="empty-state">
-                    <div className="card-spinner">🂡</div>
+                    <div className="card-spinner">♠️</div>
                     <h3>Loading Players...</h3>
                 </div>
             </div>

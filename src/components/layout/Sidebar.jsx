@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 
 const navItems = [
     { path: '/', icon: '📊', label: 'Dashboard' },
-    { path: '/game', icon: '🂡', label: 'Score Board' },
+    { path: '/game', icon: '♠️', label: 'Score Board' },
 ];
 
 const manageItems = [
@@ -82,7 +82,7 @@ export default function Sidebar() {
                 </nav>
 
                 <div className="sidebar-footer">
-                    v01.24 • Created by Srinivas Tadapaneni
+                    v01.24 • Made with ❤️ by Srinivas Tadapaneni
                 </div>
             </aside>
         </>

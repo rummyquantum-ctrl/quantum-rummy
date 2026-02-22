@@ -184,7 +184,7 @@ export default function Analytics() {
         return (
             <div className="page-enter">
                 <div className="empty-state">
-                    <div className="card-spinner">🂡</div>
+                    <div className="card-spinner">♠️</div>
                     <h3>Analyzing the Deck...</h3>
                     <p>Crunching your game data</p>
                 </div>

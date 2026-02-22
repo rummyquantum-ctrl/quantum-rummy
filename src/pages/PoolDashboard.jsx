@@ -142,7 +142,7 @@ export default function PoolDashboard() {
         return (
             <div className="page-enter">
                 <div className="empty-state">
-                    <div className="card-spinner">🂡</div>
+                    <div className="card-spinner">♠️</div>
                     <h3>Loading Pool Dashboard...</h3>
                 </div>
             </div>

@@ -167,7 +167,7 @@ export default function Dashboard() {
         return (
             <div className="page-enter">
                 <div className="empty-state">
-                    <div className="card-spinner">🂡</div>
+                    <div className="card-spinner">♠️</div>
                     <h3>Shuffling the Deck...</h3>
                     <p>Loading dashboard data</p>
                 </div>
