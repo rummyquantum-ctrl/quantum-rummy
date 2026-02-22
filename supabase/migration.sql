@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS rounds (
   session_id UUID REFERENCES game_sessions(id) ON DELETE CASCADE,
   round_number INTEGER NOT NULL,
   round_label TEXT,
+  expenses INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 

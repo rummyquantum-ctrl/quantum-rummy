@@ -203,14 +203,26 @@ export default function GameSession() {
                 game2: 0, game3: 0, game4: 0, game5: 0,
                 game6: 0, game7: 0, game8: 0, game9: 0, game10: 0,
             }));
-            await backupAndNextRound(activeSession.id, currentRound, playerScores);
+            const expensesVal = roundScores['expenses'] || 0;
+
+            const { round, savedScores, updatedTotals } = await backupAndNextRound(
+                activeSession.id, currentRound, playerScores, expensesVal
+            );
+
+            // Incremental state update — NO full reload
+            setRounds((prev) => [...prev, round]);
+            setAllScores((prev) => [...prev, ...(savedScores || [])]);
+            setFinalTotals(updatedTotals);
+            setCurrentRound((prev) => prev + 1);
+            setRoundScores(initRoundScores(sessionPlayers, activeSession.game_type || 'strike'));
+            autoSaveTriggered.current = false;
+
             addToast(`✅ Round SR${currentRound} saved!`);
-            await loadData();
         } catch (err) {
             addToast('Auto-save failed: ' + err.message, 'error');
             autoSaveTriggered.current = false;
         } finally { setSaving(false); }
-    }, [activeSession, isRoundComplete, sessionPlayers, roundScores, currentRound, addToast, loadData]);
+    }, [activeSession, isRoundComplete, sessionPlayers, roundScores, currentRound, addToast, initRoundScores]);
 
     useEffect(() => {
         if (isRoundComplete() && !autoSaveTriggered.current) {

@@ -104,13 +104,14 @@ export async function fetchRounds(sessionId) {
     return data;
 }
 
-export async function createRound(sessionId, roundNumber, roundLabel) {
+export async function createRound(sessionId, roundNumber, roundLabel, expenses = 0) {
     const { data, error } = await supabase
         .from('rounds')
         .insert([{
             session_id: sessionId,
             round_number: roundNumber,
             round_label: roundLabel,
+            expenses: expenses,
         }])
         .select()
         .single();
@@ -282,24 +283,26 @@ export async function upsertPoolScore(sessionId, playerId, totalScore, fieldPoin
 }
 
 // ─── Backup & Next Round (replaces backUpandClear) ───
-export async function backupAndNextRound(sessionId, roundNumber, playerScores) {
+export async function backupAndNextRound(sessionId, roundNumber, playerScores, expenses = 0) {
     const roundLabel = `SR${roundNumber}`;
 
-    // 1. Create the round
-    const round = await createRound(sessionId, roundNumber, roundLabel);
+    // 1. Create the round (with expenses)
+    const round = await createRound(sessionId, roundNumber, roundLabel, expenses);
 
     // 2. Save all player scores for this round
-    await saveRoundScores(round.id, playerScores);
+    const savedScores = await saveRoundScores(round.id, playerScores);
 
     // 3. Update final totals for each player
+    const updatedTotals = [];
     for (const ps of playerScores) {
         const roundTotal = (ps.game1 || 0) + (ps.game2 || 0) + (ps.game3 || 0) +
             (ps.game4 || 0) + (ps.game5 || 0) + (ps.game6 || 0) + (ps.game7 || 0) +
             (ps.game8 || 0) + (ps.game9 || 0) + (ps.game10 || 0);
-        await upsertFinalTotal(sessionId, ps.player_id, { roundScore: roundTotal });
+        const ft = await upsertFinalTotal(sessionId, ps.player_id, { roundScore: roundTotal });
+        updatedTotals.push(ft);
     }
 
-    return round;
+    return { round, savedScores, updatedTotals };
 }
 
 // ─── Realtime Subscriptions ───
