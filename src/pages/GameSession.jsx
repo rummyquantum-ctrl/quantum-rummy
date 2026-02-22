@@ -220,12 +220,24 @@ export default function GameSession() {
                 setAllPlayers((prev) => [...prev, player]);
             }
             setSessionPlayers((prev) => [...prev, player]);
-            setRoundScores((prev) => ({ ...prev, [player.id]: null }));
+
+            // Pool: new player starts with highest score + 1 (first drop left rule)
+            const sType = activeSession?.game_type || 'strike';
+            let initialScore = null;
+            if (sType === 'pool' && rounds.length > 0) {
+                const highestTotal = Math.max(0, ...sessionPlayers.map((p) => cumulativeTotals[p.id] || 0));
+                initialScore = highestTotal + 1;
+            }
+            setRoundScores((prev) => ({ ...prev, [player.id]: initialScore }));
+
             setInlinePlayerName('');
             setShowAddPlayerInline(false);
-            addToast(`✅ ${player.name} joined the game!`);
+            const msg = initialScore !== null
+                ? `✅ ${player.name} joined with ${initialScore} pts (highest + 1)`
+                : `✅ ${player.name} joined the game!`;
+            addToast(msg);
         } catch (err) { addToast('Error: ' + err.message, 'error'); }
-    }, [inlinePlayerName, addToast, sessionPlayers.length, allPlayers, sessionPlayers]);
+    }, [inlinePlayerName, addToast, sessionPlayers, allPlayers, activeSession, rounds, finalTotals]);
 
     // Score handling — numeric only
     const handleScoreChange = useCallback((key, value) => {
