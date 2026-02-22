@@ -1854,3 +1854,110 @@ input[type="number"] {
     -moz-appearance: textfield;
     appearance: textfield;
 }
+
+/* ─── Fast Fill Bar ─── */
+.fast-fill-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--space-md);
+    flex-wrap: wrap;
+}
+
+.fast-fill-label {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.fast-fill-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 14px;
+    border: 1.5px solid color-mix(in srgb, var(--ff-color) 30%, transparent);
+    border-radius: var(--radius-full);
+    background: var(--ff-bg);
+    color: var(--ff-color);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    font-family: var(--font-family);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+}
+
+.fast-fill-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--ff-color) 20%, transparent);
+    border-color: var(--ff-color);
+}
+
+.fast-fill-btn:active:not(:disabled) {
+    transform: scale(0.96);
+}
+
+.fast-fill-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+/* ─── Submit Scores Button ─── */
+.submit-scores-btn {
+    padding: var(--space-md) var(--space-2xl) !important;
+    font-size: var(--font-size-base) !important;
+    font-weight: 700 !important;
+    border-radius: var(--radius-lg) !important;
+    box-shadow: var(--shadow-glow);
+    transition: all var(--transition-base) !important;
+    text-transform: none;
+    letter-spacing: 0.3px;
+}
+
+.submit-scores-btn:not(:disabled):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
+}
+
+.submit-scores-btn:disabled {
+    opacity: 0.4;
+    box-shadow: none;
+}
+
+/* ─── Winner Active Button ─── */
+.btn-winner-active {
+    border: 1.5px solid var(--color-success) !important;
+    background: rgba(16, 185, 129, 0.15) !important;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.2);
+}
+
+/* ─── Score Input Text Mode (numeric keyboard) ─── */
+.score-table input[type="text"][inputmode="numeric"] {
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-weight: 600;
+}
+
+/* ─── Hide spinners for text inputs as well ─── */
+input[type="text"]::-webkit-outer-spin-button,
+input[type="text"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    appearance: none;
+    margin: 0;
+}
+
+/* ─── Add Player Row ─── */
+.add-player-row td {
+    border-top: 1px dashed rgba(16, 185, 129, 0.2) !important;
+    border-bottom: none !important;
+}
+
+.add-player-row:hover td {
+    background: rgba(16, 185, 129, 0.06) !important;
+}

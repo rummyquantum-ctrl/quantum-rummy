@@ -284,7 +284,7 @@ export async function upsertPoolScore(sessionId, playerId, totalScore, fieldPoin
 
 // ─── Backup & Next Round (replaces backUpandClear) ───
 export async function backupAndNextRound(sessionId, roundNumber, playerScores, expenses = 0) {
-    const roundLabel = `SR${roundNumber}`;
+    const roundLabel = `Game ${roundNumber}`;
 
     // 1. Create the round (with expenses)
     const round = await createRound(sessionId, roundNumber, roundLabel, expenses);

@@ -22,6 +22,20 @@ const DEFAULT_PENALTIES = {
 
 const POOL_PRESETS = [101, 201, 251];
 
+// Fast Fill options — game-type specific
+const STRIKE_FAST_FILL = [
+    { label: 'Drop', value: -20, color: '#EF4444', bg: 'rgba(239,68,68,0.1)' },
+    { label: 'Middle Drop', value: -40, color: '#F59E0B', bg: 'rgba(245,158,11,0.1)' },
+    { label: 'Full Count', value: -80, color: '#8B5CF6', bg: 'rgba(139,92,246,0.1)' },
+    { label: 'Winner 🏆', value: 'winner', color: '#10B981', bg: 'rgba(16,185,129,0.1)' },
+];
+const POOL_FAST_FILL = [
+    { label: 'Drop', value: 20, color: '#EF4444', bg: 'rgba(239,68,68,0.1)' },
+    { label: 'Middle Drop', value: 40, color: '#F59E0B', bg: 'rgba(245,158,11,0.1)' },
+    { label: 'Full Count', value: 80, color: '#8B5CF6', bg: 'rgba(139,92,246,0.1)' },
+    { label: 'Winner (0)', value: 'pool_winner', color: '#10B981', bg: 'rgba(16,185,129,0.1)' },
+];
+
 export default function GameSession() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -36,7 +50,17 @@ export default function GameSession() {
 
     // Current round: { playerId: number|null, expenses: number|null }
     const [roundScores, setRoundScores] = useState({});
-    const autoSaveTriggered = useRef(false);
+
+    // Winner tracking
+    const [winnerId, setWinnerId] = useState(null);
+
+    // Fast-fill focus tracking
+    const [focusedPlayerId, setFocusedPlayerId] = useState(null);
+    const inputRefs = useRef({});
+
+    // Mid-round add player
+    const [showAddPlayerInline, setShowAddPlayerInline] = useState(false);
+    const [inlinePlayerName, setInlinePlayerName] = useState('');
 
     // Wizard
     const [wizardStep, setWizardStep] = useState(1);
@@ -129,7 +153,7 @@ export default function GameSession() {
                 const activePlayers = (playersData || []).filter((p) => playerIds.includes(p.id));
                 setSessionPlayers(activePlayers);
                 setRoundScores(initRoundScores(activePlayers, active.game_type || 'strike'));
-                autoSaveTriggered.current = false;
+                setWinnerId(null);
             }
         } catch (err) {
             console.error('Load error:', err);
@@ -172,29 +196,127 @@ export default function GameSession() {
         } catch (err) { addToast('Error: ' + err.message, 'error'); }
     }, [newPlayerName, addToast, selectedPlayerIds.size]);
 
-    // Score handling
+    // Add player mid-round
+    const handleAddPlayerMidRound = useCallback(async () => {
+        if (!inlinePlayerName.trim()) return;
+        if (sessionPlayers.length >= MAX_PLAYERS) {
+            addToast(`Max ${MAX_PLAYERS} players reached.`, 'error');
+            return;
+        }
+        try {
+            const name = inlinePlayerName.trim();
+            // Check if player already exists
+            const existing = allPlayers.find((p) => p.name.toLowerCase() === name.toLowerCase());
+            let player;
+            if (existing) {
+                // Already in session?
+                if (sessionPlayers.some((p) => p.id === existing.id)) {
+                    addToast(`${existing.name} is already in this game.`, 'error');
+                    return;
+                }
+                player = existing;
+            } else {
+                player = await addPlayer(name);
+                setAllPlayers((prev) => [...prev, player]);
+            }
+            setSessionPlayers((prev) => [...prev, player]);
+            setRoundScores((prev) => ({ ...prev, [player.id]: null }));
+            setInlinePlayerName('');
+            setShowAddPlayerInline(false);
+            addToast(`✅ ${player.name} joined the game!`);
+        } catch (err) { addToast('Error: ' + err.message, 'error'); }
+    }, [inlinePlayerName, addToast, sessionPlayers.length, allPlayers, sessionPlayers]);
+
+    // Score handling — numeric only
     const handleScoreChange = useCallback((key, value) => {
-        const parsed = value === '' ? null : Number(value);
+        if (value === '' || value === '-') {
+            setRoundScores((prev) => ({ ...prev, [key]: value === '-' ? '-' : null }));
+            return;
+        }
+        const parsed = Number(value);
+        if (isNaN(parsed)) return; // reject non-numeric
         setRoundScores((prev) => ({ ...prev, [key]: parsed }));
-        autoSaveTriggered.current = false;
     }, []);
 
-    // Auto-save
+    // Numeric input key filter
+    const handleScoreKeyDown = useCallback((e, playerIdx) => {
+        // Allow: digits, backspace, tab, enter, arrows, delete, minus
+        const allowed = ['Backspace', 'Tab', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Delete', '-'];
+        if (!allowed.includes(e.key) && !/^\d$/.test(e.key)) {
+            e.preventDefault();
+        }
+        // Enter/Tab: move to next player
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const nextIdx = playerIdx + 1;
+            const nextPlayer = sessionPlayers[nextIdx];
+            if (nextPlayer && inputRefs.current[nextPlayer.id]) {
+                inputRefs.current[nextPlayer.id].focus();
+            } else if (activeSession?.game_type === 'strike' && inputRefs.current['expenses']) {
+                inputRefs.current['expenses'].focus();
+            }
+        }
+    }, [sessionPlayers, activeSession]);
+
+    // Mark winner (just flags the player — score is manually entered)
+    const handleToggleWinner = useCallback((playerId) => {
+        setWinnerId((prev) => (prev === playerId ? null : playerId));
+    }, []);
+
+    // Fast fill — game-type aware
+    const handleFastFill = useCallback((value) => {
+        if (!focusedPlayerId || focusedPlayerId === 'expenses') return;
+        if (value === 'winner') {
+            // Strike: mark focused player as winner
+            handleToggleWinner(focusedPlayerId);
+        } else if (value === 'pool_winner') {
+            // Pool: winner declared = 0 points
+            setRoundScores((prev) => ({ ...prev, [focusedPlayerId]: 0 }));
+        } else {
+            setRoundScores((prev) => ({ ...prev, [focusedPlayerId]: value }));
+        }
+    }, [focusedPlayerId, handleToggleWinner]);
+
+    // Auto-calculate expenses in Strike when winner + all losers have scores
+    useEffect(() => {
+        if (!winnerId) return;
+        const sType = activeSession?.game_type || 'strike';
+        if (sType !== 'strike') return;
+        const winnerScore = roundScores[winnerId];
+        if (typeof winnerScore !== 'number' || winnerScore <= 0) return;
+        // Check all non-winner players have scores
+        const allLosersEntered = sessionPlayers.every((p) => {
+            if (p.id === winnerId) return true;
+            return typeof roundScores[p.id] === 'number';
+        });
+        if (!allLosersEntered) return;
+        const loserTotal = sessionPlayers.reduce((sum, p) => {
+            if (p.id === winnerId) return sum;
+            return sum + (typeof roundScores[p.id] === 'number' ? Math.abs(roundScores[p.id]) : 0);
+        }, 0);
+        // Expenses = loser total - winner score (what the house keeps)
+        const autoExpenses = loserTotal - winnerScore;
+        if (autoExpenses >= 0 && roundScores['expenses'] !== -autoExpenses) {
+            setRoundScores((prev) => ({ ...prev, ['expenses']: -autoExpenses }));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [winnerId, activeSession, sessionPlayers, ...sessionPlayers.map(p => roundScores[p.id]).filter(v => typeof v === 'number')]);
+
+    // Manual submit
     const isRoundComplete = useCallback(() => {
-        if (saving || autoSaveTriggered.current) return false;
+        if (saving) return false;
         const playerIds = sessionPlayers.map((p) => p.id);
         if (playerIds.length === 0) return false;
         for (const pid of playerIds) {
-            if (roundScores[pid] === null || roundScores[pid] === undefined) return false;
+            if (roundScores[pid] === null || roundScores[pid] === undefined || roundScores[pid] === '-') return false;
         }
         const sType = activeSession?.game_type || 'strike';
-        if (sType === 'strike' && (roundScores['expenses'] === null || roundScores['expenses'] === undefined)) return false;
+        if (sType === 'strike' && (roundScores['expenses'] === null || roundScores['expenses'] === undefined || roundScores['expenses'] === '-')) return false;
         return true;
     }, [sessionPlayers, roundScores, saving, activeSession]);
 
-    const doAutoSave = useCallback(async () => {
+    const handleSubmitScores = useCallback(async () => {
         if (!activeSession || !isRoundComplete()) return;
-        autoSaveTriggered.current = true;
         try {
             setSaving(true);
             const playerScores = sessionPlayers.map((p) => ({
@@ -215,21 +337,13 @@ export default function GameSession() {
             setFinalTotals(updatedTotals);
             setCurrentRound((prev) => prev + 1);
             setRoundScores(initRoundScores(sessionPlayers, activeSession.game_type || 'strike'));
-            autoSaveTriggered.current = false;
+            setWinnerId(null);
 
-            addToast(`✅ Round SR${currentRound} saved!`);
+            addToast(`✅ Game ${currentRound} saved!`);
         } catch (err) {
-            addToast('Auto-save failed: ' + err.message, 'error');
-            autoSaveTriggered.current = false;
+            addToast('Save failed: ' + err.message, 'error');
         } finally { setSaving(false); }
     }, [activeSession, isRoundComplete, sessionPlayers, roundScores, currentRound, addToast, initRoundScores]);
-
-    useEffect(() => {
-        if (isRoundComplete() && !autoSaveTriggered.current) {
-            const timer = setTimeout(() => doAutoSave(), 600);
-            return () => clearTimeout(timer);
-        }
-    }, [roundScores, isRoundComplete, doAutoSave]);
 
     // Session actions
     const handleCreateSession = useCallback(async () => {
@@ -249,7 +363,7 @@ export default function GameSession() {
             setAllScores([]);
             setCurrentRound(1);
             setRoundScores(initRoundScores(selected, gameType));
-            autoSaveTriggered.current = false;
+            setWinnerId(null);
             setWizardStep(1);
             addToast(`🃏 ${gameType === 'pool' ? `Pool ${effectivePoolLimit}` : 'Strike'} game started!`);
         } catch (err) { addToast('Failed: ' + err.message, 'error'); }
@@ -473,7 +587,7 @@ export default function GameSession() {
                             <span className="header-divider">•</span>
                             <span className="header-meta-chip">🎴 Table {activeSession.table_number}</span>
                             <span className="header-divider">•</span>
-                            <span className="header-meta-chip">🔄 Round SR{currentRound}</span>
+                            <span className="header-meta-chip">🔄 Game {currentRound}</span>
                             <span className="header-divider">•</span>
                             <span className="header-meta-chip">♣ {sessionPlayers.length} players</span>
                             {rounds.length > 0 && (
@@ -488,8 +602,14 @@ export default function GameSession() {
                         </div>
                     </div>
                     <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
+                        {sessionPlayers.length < MAX_PLAYERS && (
+                            <button className="btn btn-ghost" onClick={() => setShowAddPlayerInline(true)}
+                                style={{ color: 'var(--color-primary-light)' }}>
+                                ➕ Add Player
+                            </button>
+                        )}
                         <button className="btn btn-ghost" onClick={() => setShowEndSessionModal(true)} style={{ color: 'var(--color-danger)' }}>
-                            🏁 End Session
+                            🏁 Finish Game
                         </button>
                     </div>
                 </div>
@@ -498,14 +618,29 @@ export default function GameSession() {
             {/* Scoring Banner */}
             <div className="active-banner" style={{ marginBottom: 'var(--space-lg)' }}>
                 <div className="active-banner-info">
-                    <h3>📝 Scoring — Round SR{currentRound}</h3>
+                    <h3>📝 Scoring – {isStrike ? 'Strike' : 'Pool'} Round {currentRound}</h3>
                     <p>
-                        Enter each player's score in the <strong>SR{currentRound}</strong> column.
-                        {isStrike ? ' Fill all + expenses to auto-save.' : ' Fill all to auto-save.'}
-                        {' '}Winner enters <strong>0</strong>.
+                        {isStrike
+                            ? <>Enter negative scores for losers and positive score for the winner in <strong>Game {currentRound}</strong>. Mark the winner with <strong>Winner 🏆</strong>. Expenses auto-calculate as the difference.</>
+                            : <>Enter each player's penalty points in <strong>Game {currentRound}</strong>. The round winner gets 0 points. Use <strong>Winner (0)</strong> to set 0 for the winner.</>
+                        }
                     </p>
                 </div>
                 {saving && <span className="badge badge-accent">⏳ Saving...</span>}
+            </div>
+
+            {/* Fast Fill Bar — game-type-specific options */}
+            <div className="fast-fill-bar">
+                <span className="fast-fill-label">⚡ Fast Fill:</span>
+                {(isStrike ? STRIKE_FAST_FILL : POOL_FAST_FILL).map((opt) => (
+                    <button key={opt.label} className="fast-fill-btn"
+                        style={{ '--ff-color': opt.color, '--ff-bg': opt.bg }}
+                        onClick={() => handleFastFill(opt.value)}
+                        disabled={!focusedPlayerId || focusedPlayerId === 'expenses'}
+                        title={typeof opt.value === 'number' ? `Set focused player to ${opt.value}` : opt.label}>
+                        {typeof opt.value === 'number' ? `${opt.label} (${opt.value})` : opt.label}
+                    </button>
+                ))}
             </div>
 
             {/* Score Table — Players as ROWS, Rounds as COLUMNS */}
@@ -516,9 +651,11 @@ export default function GameSession() {
                             <tr>
                                 <th style={{ width: 40 }}>#</th>
                                 <th style={{ minWidth: 120 }}>Player</th>
-                                {/* Past round columns */}
+                                {/* Past round columns — with ✅ tick */}
                                 {rounds.map((r) => (
-                                    <th key={r.id} style={{ textAlign: 'center', minWidth: 60 }}>{r.round_label}</th>
+                                    <th key={r.id} style={{ textAlign: 'center', minWidth: 60 }}>
+                                        {r.round_label} <span style={{ color: 'var(--color-success)', fontSize: 'var(--font-size-xs)' }}>✅</span>
+                                    </th>
                                 ))}
                                 {/* Current round column — highlighted */}
                                 <th style={{
@@ -527,8 +664,9 @@ export default function GameSession() {
                                     borderBottom: '2px solid var(--color-primary)',
                                     color: 'var(--color-primary-light)',
                                 }}>
-                                    SR{currentRound} ✏️
+                                    Game {currentRound} ✏️
                                 </th>
+
                                 {/* Total column */}
                                 <th style={{ textAlign: 'center', minWidth: 70, background: 'rgba(245,158,11,0.08)' }}>
                                     Total
@@ -539,10 +677,12 @@ export default function GameSession() {
                             {/* Player rows */}
                             {sessionPlayers.map((player, idx) => {
                                 const cumTotal = cumulativeTotals[player.id] || 0;
-                                const currentScore = roundScores[player.id] || 0;
+                                const rawScore = roundScores[player.id];
+                                const currentScore = typeof rawScore === 'number' ? rawScore : 0;
                                 const grandTotal = cumTotal + currentScore;
                                 const isEliminated = !isStrike && grandTotal >= effectivePoolLimit;
                                 const isNearLimit = !isStrike && grandTotal >= effectivePoolLimit * 0.8;
+                                const isWinner = winnerId === player.id;
 
                                 return (
                                     <tr key={player.id} style={{ opacity: isEliminated ? 0.5 : 1 }}>
@@ -557,45 +697,67 @@ export default function GameSession() {
                                                 </div>
                                                 <span>{player.name}</span>
                                                 {isEliminated && <span style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-xs)' }}>❌</span>}
+                                                {isWinner && <span style={{ color: 'var(--color-success)', fontSize: 'var(--font-size-xs)' }}>🏆</span>}
                                             </div>
                                         </td>
                                         {/* Past round scores — read only */}
                                         {rounds.map((r) => {
                                             const val = pastRoundScoreMap[r.id]?.[player.id] || 0;
+                                            // Find if this player was the winner of that round (highest positive score)
+                                            const roundData = pastRoundScoreMap[r.id] || {};
+                                            const maxScore = Math.max(...Object.values(roundData));
+                                            const wasRoundWinner = val === maxScore && val > 0;
                                             return (
                                                 <td key={r.id} className="font-mono" style={{
                                                     textAlign: 'center',
-                                                    color: val === 0 ? 'var(--color-success)' : val >= 80 ? 'var(--color-danger)' : 'var(--text-primary)',
-                                                    fontWeight: val === 0 ? 700 : 400,
+                                                    color: wasRoundWinner ? 'var(--color-success)' : val === 0 ? 'var(--text-tertiary)' : 'var(--color-danger)',
+                                                    fontWeight: wasRoundWinner ? 700 : 400,
+                                                    background: wasRoundWinner ? 'rgba(16,185,129,0.08)' : 'transparent',
                                                 }}>
-                                                    {val}
+                                                    {val > 0 ? `+${val}` : val}
                                                 </td>
                                             );
                                         })}
                                         {/* Current round — editable */}
-                                        <td style={{ background: 'rgba(16,185,129,0.04)' }}>
+                                        <td style={{
+                                            background: isWinner ? 'rgba(16,185,129,0.12)' : 'rgba(16,185,129,0.04)',
+                                        }}>
                                             <input
-                                                type="number"
+                                                ref={(el) => { inputRefs.current[player.id] = el; }}
+                                                type="text"
+                                                inputMode="numeric"
                                                 value={roundScores[player.id] === null || roundScores[player.id] === undefined ? '' : roundScores[player.id]}
                                                 onChange={(e) => handleScoreChange(player.id, e.target.value)}
+                                                onKeyDown={(e) => handleScoreKeyDown(e, idx)}
+                                                onFocus={() => setFocusedPlayerId(player.id)}
                                                 placeholder="—"
-                                                style={{ textAlign: 'center' }}
+                                                style={{
+                                                    textAlign: 'center',
+                                                    color: isWinner ? 'var(--color-success)' : undefined,
+                                                    fontWeight: isWinner ? 700 : undefined,
+                                                }}
                                                 tabIndex={idx + 1}
                                                 autoFocus={idx === 0}
+                                                readOnly={false}
                                             />
                                         </td>
+
                                         {/* Running total */}
                                         <td className="font-mono" style={{
                                             textAlign: 'center', fontWeight: 700,
-                                            color: isEliminated ? 'var(--color-danger)' :
-                                                isNearLimit ? 'var(--color-accent)' : 'var(--color-primary-light)',
+                                            color: isWinner ? 'var(--color-success)' :
+                                                isEliminated ? 'var(--color-danger)' :
+                                                    isNearLimit ? 'var(--color-accent)' : 'var(--color-primary-light)',
                                             textDecoration: isEliminated ? 'line-through' : 'none',
+                                            background: isWinner ? 'rgba(16,185,129,0.08)' : undefined,
                                         }}>
-                                            {grandTotal}
+                                            {isWinner && grandTotal > 0 ? `+${grandTotal}` : grandTotal}
                                         </td>
                                     </tr>
                                 );
                             })}
+
+
 
                             {/* Expenses row — Strike only */}
                             {isStrike && (
@@ -607,9 +769,16 @@ export default function GameSession() {
                                     ))}
                                     <td style={{ background: 'rgba(16,185,129,0.04)' }}>
                                         <input
-                                            type="number"
+                                            ref={(el) => { inputRefs.current['expenses'] = el; }}
+                                            type="text"
+                                            inputMode="numeric"
                                             value={roundScores['expenses'] === null || roundScores['expenses'] === undefined ? '' : roundScores['expenses']}
                                             onChange={(e) => handleScoreChange('expenses', e.target.value)}
+                                            onKeyDown={(e) => {
+                                                const allowed = ['Backspace', 'Tab', 'Enter', 'ArrowLeft', 'ArrowRight', 'Delete', '-'];
+                                                if (!allowed.includes(e.key) && !/^\d$/.test(e.key)) e.preventDefault();
+                                            }}
+                                            onFocus={() => setFocusedPlayerId('expenses')}
                                             placeholder="—"
                                             style={{ textAlign: 'center', borderColor: 'rgba(239,68,68,0.2)' }}
                                             tabIndex={sessionPlayers.length + 1}
@@ -619,11 +788,11 @@ export default function GameSession() {
                                 </tr>
                             )}
 
-                            {/* ♠ Net row — Strike only */}
+                            {/* Net row — Strike only, label-less */}
                             {isStrike && (
                                 <tr className="total-row">
                                     <td></td>
-                                    <td style={{ color: 'var(--color-primary-light)', fontWeight: 700 }}>♠ Net</td>
+                                    <td></td>
                                     {rounds.map((r) => {
                                         const roundData = pastRoundScoreMap[r.id] || {};
                                         let net = 0;
@@ -643,15 +812,15 @@ export default function GameSession() {
                                         background: 'rgba(16,185,129,0.04)',
                                         color: (() => {
                                             let net = 0;
-                                            sessionPlayers.forEach((p) => { net += roundScores[p.id] || 0; });
-                                            net += roundScores['expenses'] || 0;
+                                            sessionPlayers.forEach((p) => { net += (typeof roundScores[p.id] === 'number' ? roundScores[p.id] : 0); });
+                                            net += (typeof roundScores['expenses'] === 'number' ? roundScores['expenses'] : 0);
                                             return net === 0 ? 'var(--color-success)' : 'var(--color-danger)';
                                         })(),
                                     }}>
                                         {(() => {
                                             let net = 0;
-                                            sessionPlayers.forEach((p) => { net += roundScores[p.id] || 0; });
-                                            net += roundScores['expenses'] || 0;
+                                            sessionPlayers.forEach((p) => { net += (typeof roundScores[p.id] === 'number' ? roundScores[p.id] : 0); });
+                                            net += (typeof roundScores['expenses'] === 'number' ? roundScores['expenses'] : 0);
                                             return net;
                                         })()}
                                     </td>
@@ -663,11 +832,31 @@ export default function GameSession() {
                 </div>
             </div>
 
+            {/* Submit Scores Button */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 'var(--space-lg)', gap: 'var(--space-md)' }}>
+                <button
+                    className="btn btn-primary submit-scores-btn"
+                    onClick={handleSubmitScores}
+                    disabled={!isRoundComplete() || saving}
+                    style={{ minWidth: 240 }}
+                >
+                    {saving ? '⏳ Saving...' : `✅ Submit Scores – Game ${currentRound}`}
+                </button>
+            </div>
+
+            {/* Admin notice */}
+            <div style={{
+                textAlign: 'center', marginTop: 'var(--space-sm)',
+                fontSize: 'var(--font-size-xs)', color: 'var(--text-tertiary)',
+            }}>
+                🔒 Score re-editing is restricted to Admin / Game Moderator only
+            </div>
+
             {/* Pool progress bars */}
             {!isStrike && (
                 <div style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap', marginTop: 'var(--space-md)' }}>
                     {sessionPlayers.map((p) => {
-                        const total = (cumulativeTotals[p.id] || 0) + (roundScores[p.id] || 0);
+                        const total = (cumulativeTotals[p.id] || 0) + (typeof roundScores[p.id] === 'number' ? roundScores[p.id] : 0);
                         const pct = Math.min(100, Math.round((total / effectivePoolLimit) * 100));
                         const isOut = total >= effectivePoolLimit;
                         return (
@@ -697,12 +886,41 @@ export default function GameSession() {
                 </div>
             )}
 
+            {/* Add Player Modal */}
+            {showAddPlayerInline && (
+                <div className="modal-overlay" onClick={() => { setShowAddPlayerInline(false); setInlinePlayerName(''); }}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 400 }}>
+                        <div className="modal-header">
+                            <h3>➕ Add Player</h3>
+                            <button className="btn btn-icon btn-ghost" onClick={() => { setShowAddPlayerInline(false); setInlinePlayerName(''); }}>✕</button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="confirm-icon primary">👤</div>
+                            <div style={{ marginBottom: 'var(--space-md)' }}>
+                                <label className="form-label">Player Name</label>
+                                <input type="text" className="form-input" placeholder="Enter player name..."
+                                    value={inlinePlayerName} onChange={(e) => setInlinePlayerName(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleAddPlayerMidRound()}
+                                    autoFocus />
+                            </div>
+                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-tertiary)', textAlign: 'center' }}>
+                                {sessionPlayers.length}/{MAX_PLAYERS} players in this game
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-ghost" onClick={() => { setShowAddPlayerInline(false); setInlinePlayerName(''); }}>Cancel</button>
+                            <button className="btn btn-primary" onClick={handleAddPlayerMidRound} disabled={!inlinePlayerName.trim()}>➕ Add to Game</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* End Session Modal */}
             {showEndSessionModal && (
                 <div className="modal-overlay" onClick={() => setShowEndSessionModal(false)}>
                     <div className="modal" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h3>🏁 End Session</h3>
+                            <h3>🏁 Finish Game</h3>
                             <button className="btn btn-icon btn-ghost" onClick={() => setShowEndSessionModal(false)}>✕</button>
                         </div>
                         <div className="modal-body">
@@ -714,7 +932,7 @@ export default function GameSession() {
                         </div>
                         <div className="modal-footer">
                             <button className="btn btn-ghost" onClick={() => setShowEndSessionModal(false)}>Cancel</button>
-                            <button className="btn btn-danger" onClick={handleEndSession}>🏁 End Session</button>
+                            <button className="btn btn-danger" onClick={handleEndSession}>🏁 Finish Game</button>
                         </div>
                     </div>
                 </div>
