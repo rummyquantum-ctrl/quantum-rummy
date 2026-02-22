@@ -65,7 +65,7 @@ export default function History() {
         return (
             <div className="page-enter">
                 <div className="empty-state">
-                    <div className="empty-state-icon">🃏</div>
+                    <div className="card-spinner">🂡</div>
                     <h3>Loading History...</h3>
                 </div>
             </div>

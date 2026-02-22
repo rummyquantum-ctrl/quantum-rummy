@@ -142,7 +142,7 @@ export default function PoolDashboard() {
         return (
             <div className="page-enter">
                 <div className="empty-state">
-                    <div className="empty-state-icon">⏳</div>
+                    <div className="card-spinner">🂡</div>
                     <h3>Loading Pool Dashboard...</h3>
                 </div>
             </div>
@@ -170,7 +170,7 @@ export default function PoolDashboard() {
             {!activeSession && (
                 <div className="card">
                     <div className="empty-state">
-                        <div className="empty-state-icon">🏊</div>
+                        <div className="empty-state-icon">🪙</div>
                         <h3>No Active Session</h3>
                         <p>Start a game session first to track pool scores.</p>
                     </div>
@@ -289,7 +289,7 @@ export default function PoolDashboard() {
                     ) : (
                         <div className="card">
                             <div className="empty-state">
-                                <div className="empty-state-icon">🏊</div>
+                                <div className="empty-state-icon">🪙</div>
                                 <h3>No Pool Scores Yet</h3>
                                 <p>Click "Add Pool Score" to start tracking pool rummy results.</p>
                             </div>

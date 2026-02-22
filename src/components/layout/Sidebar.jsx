@@ -3,7 +3,10 @@ import { NavLink, useLocation } from 'react-router-dom';
 
 const navItems = [
     { path: '/', icon: '📊', label: 'Dashboard' },
-    { path: '/game', icon: '🎴', label: 'Score Board' },
+    { path: '/game', icon: '🂡', label: 'Score Board' },
+];
+
+const manageItems = [
     { path: '/players', icon: '👥', label: 'Players' },
     { path: '/history', icon: '📜', label: 'History' },
     { path: '/analytics', icon: '📈', label: 'Analytics' },
@@ -47,7 +50,7 @@ export default function Sidebar() {
 
                 <nav className="sidebar-nav">
                     <div className="sidebar-nav-label">Main</div>
-                    {navItems.slice(0, 2).map((item) => (
+                    {navItems.map((item) => (
                         <NavLink
                             key={item.path}
                             to={item.path}
@@ -63,7 +66,7 @@ export default function Sidebar() {
                     ))}
 
                     <div className="sidebar-nav-label">Manage</div>
-                    {navItems.slice(3).map((item) => (
+                    {manageItems.map((item) => (
                         <NavLink
                             key={item.path}
                             to={item.path}
